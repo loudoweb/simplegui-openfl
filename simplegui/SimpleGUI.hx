@@ -59,19 +59,25 @@ class SimpleGUI extends EventDispatcher {
 
     public static inline var VERSION:Float = 1.02;
 
-    private static inline var TOOLBAR_HEIGHT:Int = 13;
-    private static inline var COMPONENT_MARGIN:Int = 8;
-    private static inline var COLUMN_MARGIN:Int = 1;
-    private static inline var GROUP_MARGIN:Int = 1;
-    private static inline var PADDING:Int = 4;
-    private static inline var MARGIN:Int = 1;
+    public static var TOOLBAR_HEIGHT:Int = 13;
+    public static var COMPONENT_MARGIN:Int = 8;
+    public static var COLUMN_MARGIN:Int = 1;
+    public static var GROUP_MARGIN:Int = 1;
+    public static var PADDING:Int = 4;
+    public static var MARGIN:Int = 1;
+	
+	static	var PROP_EREG = new EReg('[_a-z0-9]+$', "i");
+	static	var LABEL1_EREG = new EReg('[_]+([a-zA-Z0-9]+)|([0-9]+)', "g");
+	static	var LABEL2_EREG = new EReg('(?<=[a-z0-9])([A-Z])|(?<=[a-z])([0-9])', "g");
+	static	var LABEL3_EREG = new EReg('^(\\w)|\\s+(\\w)|\\.+(\\w)', "g");
+	static	var LABEL4_EREG = new EReg('^\\s|\\s$|(?<=\\s)\\s+', "g");
 
 
     //	----------------------------------------------------------------
     //	PRIVATE MEMBERS
     //	----------------------------------------------------------------
 
-    private var _components:Array<Component> = new Array<Component>();
+    public var components(default, never):Array<Component> = new Array<Component>();
     private var _parameters:Map<Component, Dynamic> = new Map<Component, Dynamic>();
     private var _container:Sprite = new Sprite();
     private var _target:DisplayObjectContainer;
@@ -177,8 +183,8 @@ class SimpleGUI extends EventDispatcher {
         var component:Component;
         var output:String = '';
 
-        for (i in 0 ... _components.length) {
-            component = _components[i];
+        for (i in 0 ... components.length) {
+            component = components[i];
             options = _parameters[component];
 
             if (options.hasOwnProperty("target")) {
@@ -210,12 +216,11 @@ class SimpleGUI extends EventDispatcher {
      */
     public function addControl<T>(type:Class<T>, options:Dynamic):Component {
         var component:Component = cast Type.createInstance(type, []);
-
         // apply settings
         for (option in Reflect.fields(options)) {
-            if (Reflect.hasField(component, option) || Reflect.hasField(component, "get_" + option)) {
+            //if (Reflect.hasField(component, option) || Reflect.hasField(component, "get_" + option)) {
                 Reflect.setProperty(component, option, Reflect.getProperty(options, option));
-            }
+            //}
         }
 
         // subscribe to component events
@@ -234,9 +239,10 @@ class SimpleGUI extends EventDispatcher {
 
         component.addEventListener(Component.DRAW, onComponentDraw);
 
-        // add a label if necessary
-
-        if (!Reflect.hasField(component, "label") && Reflect.hasField(options, "label") && !Std.is(type, Label)) {
+        
+        // add a label if necessary																																																																																																																																																																								
+		//component.name = 	
+       /* if (!Reflect.hasField(component, "label") && Reflect.hasField(options, "label") && !Std.is(type, Label)) {
             var container:Sprite = new Sprite();
             var label:Label = new Label();
 
@@ -250,12 +256,13 @@ class SimpleGUI extends EventDispatcher {
 
             _group.addChild(container);
         }
-        else {
+        else {*/
             _group.addChild(component);
-        }
+       // }
+        
 
         _parameters[component] = options;
-        _components.push(component);
+        components.push(component);
 
         update();
         //component.width = 200;
@@ -456,8 +463,17 @@ class SimpleGUI extends EventDispatcher {
 
         params.target = target;
         params.items = items;
-        params.defaultLabel = Reflect.getProperty(targ, prop);
-        params.numVisibleItems = Math.min(items.length, 5);
+		params.numVisibleItems = Math.min(items.length, 5);
+		params.defaultLabel = Reflect.getProperty(targ, prop);
+		
+		for (item in items)
+		{
+			if (item.data == params.defaultLabel)
+			{
+				params.defaultLabel = item.label;
+				break;
+			}
+		}
 
         return cast addControl(ComboBox, merge(params, options));
     }
@@ -591,8 +607,8 @@ class SimpleGUI extends EventDispatcher {
             apply(component, true);
         }
         else {
-            for (i in 0 ... _components.length) {
-                component = _components[i];
+            for (i in 0 ... components.length) {
+                component = components[i];
                 apply(component, false);
             }
         }
@@ -654,8 +670,8 @@ class SimpleGUI extends EventDispatcher {
         var options:Dynamic;
         var component:Component;
 
-        for (i in 0 ... _components.length) {
-            component = _components[i];
+        for (i in 0 ... components.length) {
+            component = components[i];
 
             if (component == _active) continue;
 
@@ -793,14 +809,12 @@ class SimpleGUI extends EventDispatcher {
     }
 
     private function parseOptions(target:String, options:Dynamic):Dynamic {
-        options = clone(options);
-
         if (Std.is(options, String)) {
             return {label: options};
         } else if (Reflect.isObject(options)) {
-            if (!Reflect.hasField(options, "label")) {
+            /*if (!Reflect.hasField(options, "label")) {
                 options.label = propToLabel(target);
-            }
+            }*/
             return options;
         } else {
             return {label: propToLabel(target)};
@@ -821,10 +835,10 @@ class SimpleGUI extends EventDispatcher {
         return target;
     }
 
-    // TODO: Rework
     private function getProp(path:String):String {
-        return null;
-        //return /[_a - z0 - 9] + $ /i.exec(path)[0];
+        //var result = PROP_EREG.match(path);
+		//return PROP_EREG.matched(0);
+		return path;
     }
 
     private function merge(source:Dynamic, destination:Dynamic):Dynamic {
@@ -849,18 +863,16 @@ class SimpleGUI extends EventDispatcher {
         return copy;
     }
 
-    // TODO: Rework
     private function propToLabel(prop:String):String {
-        return prop;
-        //return prop .replace(/[_]+ ([a - zA - Z0 - 9] + ) | ([0 - 9]+ ) / g, " $1$2 ")
-        //.replace( / (?<=[a - z0 - 9])([A - Z]) | (?<=[a - z])([0 - 9]) / g, " $1$2")
-        //.replace( / ^ (\w) | \s + (\w)| \. + (\w) / g, capitalise)
-        //.replace( / ^ \s| \s$ | (?<=\s)\s + / g, '');
+        var prop = LABEL1_EREG.replace(prop, '$1$2 ');
+		prop = LABEL2_EREG.replace(prop, ' $1$2');
+		prop = " " + LABEL3_EREG.map(prop, capitalise);
+		prop = LABEL4_EREG.replace(prop, '');
+        return null;
     }
 
-    // TODO: Macro extra:Array<Expr> rest argument?
-    private function capitalise(args:Array<String>):String {
-        return Std.string(' ' + args[1] + args[2] + args[3]).toUpperCase();
+    private function capitalise(e):String {
+        return e.matched(0).toUpperCase();
     }
 
 
